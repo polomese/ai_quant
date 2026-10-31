@@ -227,7 +227,9 @@ def update(
     for table in cfg.delta_tables:
         wm = watermark(settings, table)
         if wm is None:
-            raise SharadarError(f"{table}: processed table missing; run `pitlab data update --full`")
+            raise SharadarError(
+                f"{table}: processed table missing; run `pitlab data update --full`"
+            )
         since = wm - timedelta(days=cfg.overlap_days)
         delta = fetch_changed_rows(client, table, since, today, universe)
         # price-history rewrites only; old-dated fundamentals rows are normal (MR* rows carry

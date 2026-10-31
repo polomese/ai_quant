@@ -293,9 +293,7 @@ def _stream_full_snapshot(snap: Path, table: str, root: Path, dest: Path) -> Non
                 for name in zf.namelist():
                     if name.lower().endswith(".csv"):
                         csvs.append(Path(zf.extract(name, tmp)))
-        lf = pl.concat(
-            [pl.scan_csv(c, infer_schema=False) for c in csvs], how="diagonal_relaxed"
-        )
+        lf = pl.concat([pl.scan_csv(c, infer_schema=False) for c in csvs], how="diagonal_relaxed")
         lf = normalize_table(table, _cast_text_numbers(lf, table), root)
         lf.sink_parquet(dest)
     finally:
