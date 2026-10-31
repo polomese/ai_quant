@@ -1,0 +1,76 @@
+[project]
+name = "pitlab"
+version = "0.1.0"
+description = "Point-in-time 'two clocks' study: how much backtest alpha is look-ahead bias?"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "polars>=1.0",
+    "pyarrow>=15",
+    "duckdb>=1.0",
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "pandas>=2.1",
+    "statsmodels>=0.14",
+    "typer>=0.12",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "pyyaml>=6.0",
+    "loguru>=0.7",
+    "python-dotenv>=1.0",
+    "requests>=2.31",
+    "streamlit>=1.35",
+    "plotly>=5.20",
+    "markdown-it-py>=3.0",
+]
+
+[project.scripts]
+pitlab = "pitlab.cli:app"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "pre-commit>=3.7",
+    "types-requests",
+    "types-PyYAML",
+    "ipykernel>=6.29",
+    "kaleido>=1.5.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pitlab"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["notebooks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+ignore = ["E501", "B008"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+check_untyped_defs = false
+disallow_untyped_defs = false
+warn_unused_ignores = false
+# lenient: polars/numpy stubs type scalar aggregations as wide unions
+disable_error_code = ["arg-type", "call-overload", "var-annotated"]
+files = ["src/pitlab"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.uv]
+# same uv-managed interpreter on every PC (no dependency on conda/system Python)
+python-preference = "only-managed"
+link-mode = "copy"  # uv cache and venv may be on different drives

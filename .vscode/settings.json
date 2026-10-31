@@ -1,0 +1,6 @@
+{
+  // venv lives outside the (cloud-synced) checkout; see scripts/bootstrap.ps1
+  "python.defaultInterpreterPath": "${env:UV_PROJECT_ENVIRONMENT}\\Scripts\\python.exe",
+  "python.terminal.activateEnvironment": true,
+  "files.watcherExclude": { "**/.venv/**": true, "**/data/**": true, "**/outputs/**": true }
+}

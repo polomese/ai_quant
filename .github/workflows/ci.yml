@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install
+        run: uv sync --all-groups
+      - name: Guard against committed data
+        run: uv run python scripts/check_no_data.py $(git ls-files)
+      - name: Lint
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Type check (lenient)
+        run: uv run mypy
+      - name: Tests (synthetic data only, no API key)
+        run: uv run pytest -q
+      - name: Smoke run CLI on synthetic data
+        run: |
+          uv run pitlab data synthetic --n-stocks 200 --years 12
+          uv run pitlab data validate
+          uv run pitlab run --run-id ci
+          uv run pitlab report --run-id ci

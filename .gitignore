@@ -1,0 +1,35 @@
+# --- Licensed data: NEVER commit (Sharadar Personal Use License, no redistribution) ---
+data/
+*.parquet
+*.duckdb
+*.duckdb.wal
+*.csv.zip
+.env
+outputs/cache/
+# run outputs are regenerated locally; only curated synthetic figures under docs/img are committed
+outputs/
+
+# Python / tooling
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+.ipynb_checkpoints/
+.streamlit/secrets.toml
+
+# secrets that might be dropped in by hand
+*api_key*
+*apikey*
+*.key
+
+# personal, machine-specific project notes: they travel between PCs via iCloud, not git
+CLAUDE.md
+# iCloud sync-conflict duplicates ("app 2.py", "CLAUDE 2.md")
+* [0-9].*
+# vendor reference text (Sharadar's own documentation)
+docs/sharadder/

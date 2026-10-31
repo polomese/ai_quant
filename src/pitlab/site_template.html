@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Two Clocks: Look-Ahead Bias</title>
+<style>
+:root {
+  --bg: #fbfaf8; --panel: #ffffff; --ink: #1d1d1f; --ink2: #55565b; --muted: #85868c;
+  --line: #e4e2dd; --grid: rgba(120,120,120,.18); --accent: #2a78d6; --chip: #eef3fb;
+  --good: #1b8a5a; --warn: #a86b00; --bad: #c0392b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131416; --panel: #1b1c1f; --ink: #ececee; --ink2: #b4b5ba; --muted: #8b8c92;
+    --line: #2c2d31; --grid: rgba(200,200,200,.14); --accent: #5b9cf0; --chip: #1f2a3a;
+    --good: #4cc38a; --warn: #e5a83a; --bad: #ef6b5b;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131416; --panel: #1b1c1f; --ink: #ececee; --ink2: #b4b5ba; --muted: #8b8c92;
+  --line: #2c2d31; --grid: rgba(200,200,200,.14); --accent: #5b9cf0; --chip: #1f2a3a;
+  --good: #4cc38a; --warn: #e5a83a; --bad: #ef6b5b;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+header { border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0 6px; }
+.brand { font-weight: 700; font-size: 17px; letter-spacing: -.01em; }
+.brand small { font-weight: 400; color: var(--muted); margin-left: 8px; }
+nav { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+nav::-webkit-scrollbar { display: none; }
+nav a { padding: 8px 12px; color: var(--ink2); text-decoration: none; white-space: nowrap;
+  border-bottom: 2px solid transparent; font-size: 14px; }
+nav a.on { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+button.theme { background: none; border: 1px solid var(--line); color: var(--ink2); border-radius: 8px;
+  padding: 4px 10px; cursor: pointer; font: inherit; font-size: 13px; }
+main { padding: 20px 0 40px; }
+h1 { font-size: 24px; margin: 4px 0 6px; letter-spacing: -.01em; }
+h2 { font-size: 19px; margin: 28px 0 8px; }
+h3 { font-size: 16px; margin: 22px 0 6px; }
+p { margin: 8px 0; }
+.lead { color: var(--ink2); margin-top: 0; }
+.banner { border: 1px solid var(--line); background: var(--chip); border-radius: 10px; padding: 10px 14px; margin: 0 0 16px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin: 4px 0 14px; }
+.controls label { font-size: 13px; color: var(--ink2); display: flex; gap: 6px; align-items: center; }
+select { font: inherit; font-size: 14px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--ink); max-width: 100%; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--panel); color: var(--ink2); padding: 5px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+.seg button.on { background: var(--accent); color: #fff; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px 10px; margin-bottom: 18px; min-width: 0; }
+.chart { width: 100%; height: 360px; }
+.take { margin: 6px 0 4px; }
+details { margin: 4px 0 2px; color: var(--ink2); font-size: 14px; }
+details summary { cursor: pointer; color: var(--accent); font-size: 13px; }
+details p, details li { font-size: 14px; }
+.prose { max-width: 760px; }
+.prose table, table.data { border-collapse: collapse; width: 100%; font-size: 14px; margin: 10px 0; }
+.prose th, .prose td, table.data th, table.data td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+table.data td.n, table.data th.n { text-align: right; font-variant-numeric: tabular-nums; }
+table.data th { cursor: pointer; color: var(--ink2); font-weight: 600; white-space: nowrap; }
+.scroll { overflow-x: auto; }
+code { background: var(--chip); padding: 1px 5px; border-radius: 5px; font-size: 13px; }
+footer { border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; padding: 16px 0 28px; }
+footer a { color: var(--muted); }
+.tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--chip); color: var(--ink2); }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">Two Clocks<small>Do stock backtests know the future?</small></div>
+      <button class="theme" id="themeBtn" aria-label="Toggle dark mode">Theme</button>
+    </div>
+    <nav id="nav"></nav>
+  </div>
+</header>
+<main class="wrap" id="main"></main>
+<footer class="wrap" id="foot"></footer>
+
+<script>/*__PLOTLY__*/</script>
+<script id="payload" type="application/json">__PAYLOAD__</script>
+<script>
+"use strict";
+const D = JSON.parse(document.getElementById("payload").textContent);
+const ARM = { A: { name: "A naive", color: "#eb6834" }, B: { name: "B timing-fixed", color: "#1baf7a" }, C: { name: "C true PIT", color: "#2a78d6" } };
+const EFF = { timing: "#6250d6", revision: "#eda100" };
+const SEQ = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"];
+const PAGES = [
+  ["experiment", "Experiment"], ["overview", "Overview"], ["signals", "Signals"], ["ic", "IC over time"],
+  ["ls", "Long-short"], ["lag", "Delay test"], ["contam", "Contamination"], ["slices", "Slices"], ["clock2", "Clock 2"],
+];
+const PAIRS = { C_vs_A: "C (PIT) vs A (naive)", C_vs_B: "C (PIT) vs B (restated)" };
+const firstFund = (D.head[0] || {}).signal || D.signals[0];  // biggest look-ahead first
+const S = { page: "experiment", sig: firstFund, w: "EW", slice: "size", pair: "C_vs_A" };
+
+// ---------- helpers ----------
+const $ = (sel, el = document) => el.querySelector(sel);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmt = (v, d = 3) => (v === null || v === undefined) ? "–" : Number(v).toFixed(d);
+function explain(short, more) {
+  return `<div class="take">${short}</div>` + (more ? `<details><summary>More</summary>${more}</details>` : "");
+}
+function card(id, short, more, h) {
+  return `<div class="card"><div id="${id}" class="chart" style="${h ? "height:" + h + "px" : ""}"></div>${explain(short, more)}</div>`;
+}
+function layout(title, extra = {}) {
+  const ink = css("--ink"), grid = css("--grid");
+  const base = {
+    title: { text: title, x: 0, xanchor: "left", font: { size: 14 } },
+    paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+    font: { color: ink, family: getComputedStyle(document.body).fontFamily, size: 12 },
+    margin: { l: 52, r: 12, t: innerWidth < 600 ? 104 : 74, b: 42 },  // legends wrap on phones
+    legend: { orientation: "h", x: 0, y: 1.0, yanchor: "bottom" },
+    hovermode: "x unified",
+    xaxis: { gridcolor: grid, zerolinecolor: grid, showgrid: false },
+    yaxis: { gridcolor: grid, zerolinecolor: grid },
+  };
+  for (const k of Object.keys(extra)) {
+    base[k] = (typeof extra[k] === "object" && !Array.isArray(extra[k]) && base[k]) ? Object.assign({}, base[k], extra[k]) : extra[k];
+  }
+  return base;
+}
+function plot(id, traces, lay) {
+  Plotly.react(id, traces, lay, { responsive: true, displaylogo: false, modeBarButtonsToRemove: ["lasso2d", "select2d", "autoScale2d"] });
+}
+function sigSelect() {
+  const opts = D.signals.map(s => `<option value="${s}" ${s === S.sig ? "selected" : ""}>${s}</option>`).join("");
+  return `<label>Signal <select id="sigSel">${opts}</select></label>`;
+}
+function seg(id, items, cur) {
+  return `<span class="seg" id="${id}">` + items.map(([v, l]) => `<button data-v="${v}" class="${v === cur ? "on" : ""}">${l}</button>`).join("") + "</span>";
+}
+function wire() {
+  const ss = $("#sigSel"); if (ss) ss.onchange = e => { S.sig = e.target.value; render(); };
+  for (const [id, key] of [["wSeg", "w"], ["pairSeg", "pair"], ["sliceSeg", "slice"]]) {
+    const el = $("#" + id); if (!el) continue;
+    el.querySelectorAll("button").forEach(b => b.onclick = () => { S[key] = b.dataset.v; render(); });
+  }
+}
+const lineTrace = (x, y, a, hov) => ({ x, y, name: ARM[a].name, mode: "lines", line: { color: ARM[a].color, width: 2 }, hovertemplate: hov });
+
+// ---------- pages ----------
+const P = {};
+P.experiment = () => `<div class="prose">${banner()}<h1>Do stock backtests know the future?</h1>
+  <p class="lead">A test of look-ahead bias in ${D.meta.months} months of US stock data.</p>${D.experiment}</div>`;
+
+P.overview = () => {
+  const cols = [["signal", "Signal"], ["mean_ic_A", "IC A"], ["mean_ic_B", "IC B"], ["mean_ic_C", "IC C"],
+    ["timing", "Timing A−B"], ["revision", "Revision B−C"], ["total", "Total A−C"], ["t_total", "t (total)"],
+    ["sharpe_A", "Sharpe A"], ["sharpe_C", "Sharpe C"]];
+  const th = cols.map(([k, l], i) => `<th data-k="${k}" class="${i ? "n" : ""}">${l}</th>`).join("");
+  const rows = D.head.map(r => "<tr>" + cols.map(([k], i) => i ? `<td class="n">${fmt(r[k], k.startsWith("t_") || k.startsWith("sharpe") ? 2 : 3)}</td>` : `<td>${r[k]}</td>`).join("") + "</tr>").join("");
+  return `${banner()}<h1>Overview</h1><p class="lead">How much of each signal's backtest is look-ahead?</p>
+    <div class="card"><div class="scroll"><table class="data" id="headTbl"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div>
+    ${explain(D.take.top, D.more.headline)}</div>
+    <div class="grid2">${card("ovSplit", D.take.split, D.more.bias_split, 440)}${card("ovArms", D.take.live, D.more.ic_by_arm, 440)}</div>`;
+};
+P.overview.after = () => {
+  const h = D.head.slice().reverse();
+  plot("ovSplit", ["timing", "revision"].map(e => ({ type: "bar", orientation: "h", y: h.map(r => r.signal), x: h.map(r => r[e]),
+    name: e + " effect", marker: { color: EFF[e] }, hovertemplate: "%{y}: %{x:.4f}<extra>" + e + "</extra>" })),
+    layout("Bias in mean IC: timing + restatement", { barmode: "relative", hovermode: "closest", margin: { l: 130 } }));
+  plot("ovArms", Object.keys(ARM).map(a => ({ type: "bar", x: D.signals, y: D.signals.map(s => D.ic_by_arm[a][s]),
+    name: ARM[a].name, marker: { color: ARM[a].color }, hovertemplate: "%{x}: %{y:.4f}<extra>" + ARM[a].name + "</extra>" })),
+    layout("Mean rank IC by arm", { barmode: "group", hovermode: "closest", bargap: .25, xaxis: { tickangle: -45 }, margin: { b: 120 } }));
+  sortable("headTbl");
+};
+
+P.signals = () => {
+  const rows = D.info.filter(i => i.in_run).map(i => `<tr><td><b>${i.signal}</b><br><span class="tag">${i.family}</span></td>
+    <td>${i.definition}</td><td>${i.idea}</td><td>${i.exposure}</td></tr>`).join("");
+  return `<h1>Signals</h1>${explain(D.take.signals, D.more.signals)}
+    <div class="card scroll"><table class="data"><thead><tr><th>Signal</th><th>Definition</th><th>Why it should work</th><th>Look-ahead exposure</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
+};
+
+P.ic = () => { const p = D.per_signal[S.sig];
+  return `<h1>IC over time</h1><div class="controls">${sigSelect()}</div>${card("icChart", p.take_ic, p.note + D.more.ic_series, 400)}`; };
+P.ic.after = () => { const p = D.per_signal[S.sig];
+  const tr = Object.keys(ARM).map(a => lineTrace(D.dates, p.ic[a], a, "%{y:.3f}"));
+  plot("icChart", tr, layout(`${S.sig}: rolling 12-month rank IC`, { shapes: [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 0, y1: 0, line: { color: css("--grid"), width: 1 } }] }));
+};
+
+P.ls = () => { const p = D.per_signal[S.sig].ls[S.w];
+  const wt = S.w === "EW" ? "equal" : "value";
+  return `<h1>Long-short returns</h1><div class="controls">${sigSelect()}<label>Weighting ${seg("wSeg", [["EW", "Equal"], ["VW", "Value"]], S.w)}</label></div>
+    <div class="grid2">${card("lsW", p.take_wealth, D.per_signal[S.sig].note + D.more.wealth.replace("{weighting}", wt))}${card("lsD", p.take_dd, D.more.drawdown)}</div>`;
+};
+P.ls.after = () => { const s = D.per_signal[S.sig].ls[S.w].series;
+  plot("lsW", Object.keys(ARM).map(a => lineTrace(D.dates, s[a].wealth, a, "$%{y:,.2f}")), layout(`${S.sig}: growth of $1 (log scale)`, { yaxis: { type: "log", dtick: 1, tickprefix: "$" } }));
+  plot("lsD", Object.keys(ARM).map(a => lineTrace(D.dates, s[a].dd, a, "%{y:.1%}")), layout(`${S.sig}: drawdown`, { yaxis: { tickformat: ".0%" } }));
+};
+
+P.lag = () => { const l = D.per_signal[S.sig].lag;
+  if (!l.lags) return `<h1>Delay test</h1><p>No delay test in this run.</p>`;
+  const more = D.per_signal[S.sig].note + D.more.lag;
+  return `<h1>Delay test</h1><p class="lead">What happens if the data arrives later?</p><div class="controls">${sigSelect()}</div>
+    <div class="grid2">${card("lagIc", l.take_ic, more)}${card("lagSh", l.take_sharpe, more)}</div>`;
+};
+P.lag.after = () => { const l = D.per_signal[S.sig].lag; if (!l.lags) return;
+  for (const [id, m, t] of [["lagIc", "mean_ic", "Mean rank IC"], ["lagSh", "sharpe", "EW long-short Sharpe"]]) {
+    plot(id, Object.keys(l.arms).map(a => ({ x: l.lags.map(v => "+" + v), y: l.arms[a][m], name: ARM[a].name, mode: "lines+markers",
+      line: { color: ARM[a].color, width: 2 }, marker: { size: 8 }, hovertemplate: "%{x} days: %{y:.3f}" })),
+      layout(`${S.sig}: ${t} vs delay`, { xaxis: { title: { text: "extra delay (trading days)" }, type: "category" } }));
+  }
+};
+
+P.contam = () => { const h = D.heat[S.pair]; const sw = (D.per_signal[S.sig].switch || {})[S.pair];
+  if (!h) return `<h1>Contamination</h1><p>No contamination data in this run.</p>`;
+  const pairs = Object.keys(D.heat).map(k => [k, PAIRS[k] || k]);
+  return `<h1>Contamination</h1><p class="lead">How differently do the two versions rank stocks?</p>
+    <div class="controls"><label>Compare ${seg("pairSeg", pairs, S.pair)}</label>${sigSelect()}</div>
+    ${card("heat", h.take, D.more.rank_corr, 130 + 26 * h.signals.length)}
+    ${sw ? card("switch", sw.take, D.more.switch, 340) : ""}`;
+};
+P.contam.after = () => { const h = D.heat[S.pair]; if (!h) return;
+  plot("heat", [{ type: "heatmap", z: h.z, x: h.years, y: h.signals, xgap: 2, ygap: 2, colorscale: SEQ.map((c, i) => [i / (SEQ.length - 1), c]),
+    colorbar: { title: { text: "rank corr" } }, hovertemplate: "%{y}, %{x}: %{z:.3f}<extra></extra>" }],
+    layout("Rank correlation by signal and year", { hovermode: "closest", margin: { l: 140 }, yaxis: { autorange: "reversed" } }));
+  const sw = (D.per_signal[S.sig].switch || {})[S.pair]; if (!sw) return;
+  plot("switch", [{ x: D.dates, y: sw.share, mode: "lines", name: S.sig, line: { color: css("--accent"), width: 2 }, hovertemplate: "%{y:.1%}" }],
+    layout(`${S.sig}: share of stocks in a different decile`, { yaxis: { tickformat: ".0%" }, showlegend: false }));
+};
+
+P.slices = () => { const sl = D.per_signal[S.sig].slices; const types = Object.keys(sl);
+  if (!types.length) return `<h1>Slices</h1><p>No slice data for this signal.</p>`;
+  if (!sl[S.slice]) S.slice = types[0];
+  const more = D.per_signal[S.sig].note + D.more.slices.replace("{slice_type}", S.slice);
+  return `<h1>Slices</h1><p class="lead">Where is the bias biggest?</p>
+    <div class="controls">${sigSelect()}<label>Split by ${seg("sliceSeg", types.map(t => [t, t]), S.slice)}</label></div>
+    ${card("slChart", sl[S.slice].take, more, 400)}`;
+};
+P.slices.after = () => { const x = D.per_signal[S.sig].slices[S.slice]; if (!x) return;
+  plot("slChart", ["timing", "revision"].map(e => ({ type: "bar", x: x.slices, y: x[e], name: e + " effect", marker: { color: EFF[e] },
+    hovertemplate: "%{x}: %{y:.4f}<extra>" + e + "</extra>" })), layout(`${S.sig}: bias in mean IC by ${S.slice}`, { barmode: "relative", hovermode: "closest" }));
+};
+
+P.clock2 = () => `<div class="prose"><h1>Clock 2: what the model already knew (planned)</h1>${D.clock2}</div>`;
+
+function banner() {
+  if (D.meta.run_mode === "SYNTHETIC") return `<div class="banner">Synthetic data with look-ahead planted on purpose: these numbers test the method, not the market.</div>`;
+  if (D.meta.run_mode === "SHARADAR-FREE") return `<div class="banner">Small free sample (~30 large companies): illustrative only.</div>`;
+  return "";
+}
+function sortable(id) {
+  const t = document.getElementById(id); if (!t) return;
+  t.querySelectorAll("th").forEach((th, i) => th.onclick = () => {
+    const rows = Array.from(t.tBodies[0].rows); const dir = th.dataset.dir === "asc" ? -1 : 1; th.dataset.dir = dir === 1 ? "asc" : "desc";
+    rows.sort((a, b) => { const x = a.cells[i].textContent, y = b.cells[i].textContent; const nx = parseFloat(x), ny = parseFloat(y);
+      return (isNaN(nx) || isNaN(ny) ? x.localeCompare(y) : nx - ny) * dir; });
+    rows.forEach(r => t.tBodies[0].appendChild(r));
+  });
+}
+
+// ---------- shell ----------
+function render() {
+  $("#nav").innerHTML = PAGES.map(([k, l]) => `<a href="#${k}" class="${k === S.page ? "on" : ""}">${l}</a>`).join("");
+  $("#main").innerHTML = P[S.page]();
+  wire();
+  if (P[S.page].after) P[S.page].after();
+}
+function route() { const h = location.hash.slice(1); S.page = PAGES.some(p => p[0] === h) ? h : "experiment"; render(); window.scrollTo(0, 0); }
+window.addEventListener("hashchange", route);
+$("#themeBtn").onclick = () => {
+  const r = document.documentElement; const dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  r.dataset.theme = dark ? "light" : "dark"; render();
+};
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+$("#foot").innerHTML = `Two Clocks · results from ${String(D.meta.first).slice(0, 7)} to ${String(D.meta.last).slice(0, 7)} · built ${D.meta.generated}.
+  Aggregate backtest results only; no company-level data. Charts are interactive: hover for values, drag to zoom, double-click to reset, click a legend item to hide it.`;
+route();
+</script>
+</body>
+</html>

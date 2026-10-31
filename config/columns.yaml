@@ -1,0 +1,66 @@
+# Logical name -> physical Sharadar column name. Fix any schema mismatch HERE only.
+# Verified against https://api.sharadar.com/v1.0/schema/<table> and the `descriptions`
+# table on 2026-10-27 (see docs/DATA_NOTES.md).
+#
+# NOTE: the direct Sharadar API calls the filing-date key `date` (the legacy Nasdaq Data Link
+# name was `datekey`). For AR* dimensions it is the SEC filing date; for MR* dimensions it
+# equals `reportperiod`.
+
+fundamentals:
+  ticker: ticker
+  dimension: dimension
+  calendardate: calendardate
+  datekey: date
+  reportperiod: reportperiod
+  lastupdated: lastupdated
+  netinc: netinc
+  revenue: revenue
+  equity: equity
+  assets: assets
+  ncfo: ncfo
+  gp: gp
+  sharesbas: sharesbas
+
+stocks:
+  ticker: ticker
+  date: date
+  close: close
+  closeadj: closeadj
+  closeunadj: closeunadj
+  volume: volume
+
+daily:
+  ticker: ticker
+  date: date
+  marketcap: marketcap        # millions of USD
+
+tickers:
+  table: table
+  permaticker: permaticker
+  ticker: ticker
+  name: name
+  category: category
+  isdelisted: isdelisted
+  sector: sector
+  firstpricedate: firstpricedate
+  lastpricedate: lastpricedate
+
+sp500:
+  date: date
+  action: action
+  ticker: ticker
+
+actions:
+  date: date
+  action: action
+  ticker: ticker
+  value: value
+  contraticker: contraticker
+
+events:
+  ticker: ticker
+  date: date
+  eventcodes: eventcodes
+
+units:
+  daily_marketcap_multiplier: 1000000   # daily.marketcap is reported in millions

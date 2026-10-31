@@ -1,0 +1,108 @@
+# pit-two-clocks experiment settings. Every run copies the resolved version to
+# outputs/<run_id>/config_used.yaml.
+
+paths:
+  data_dir: data
+  outputs_dir: outputs
+  duckdb_file: data/pit.duckdb
+
+sample:
+  start: "1998-01-01"        # first rebalance considered (data before is used for history)
+  end: null                  # null = last available month-end
+
+universe:
+  categories:                # Sharadar tickers.category values treated as US common stock
+    - "Domestic Common Stock"
+    - "Domestic Common Stock Primary Class"
+    - "Domestic Common Stock Secondary Class"
+  min_price: 5.0             # unadjusted close at rebalance
+  min_history_months: 12     # months of price history before rebalance
+  sp500_only: false          # PIT membership from the sp500 table (never today's list)
+  max_fundamental_staleness_days: 456   # ignore fundamentals whose period ended > ~15 months ago
+  # Comparison universe across arms: "intersection" (names with a valid signal in every
+  # compared arm at that date) or "per_arm". Intersection is the conservative default.
+  comparison_universe: intersection
+
+returns:
+  delisting_return_unknown: -0.30   # applied when a stock delists for an unknown / performance reason
+  delisting_return_mna: 0.0         # applied when actions show an acquisition / merger
+  mna_actions: ["acquisitionby", "mergerfrom", "spinoffdividend"]
+
+arms:
+  A:
+    label: "A - Naive (restated @ period end)"
+    version: MR              # MR = most-recent (restated), AR = as-reported
+    timing: period_end       # available at calendardate
+    lag_trading_days: 0
+  B:
+    label: "B - Timing-fixed (restated @ filing)"
+    version: MR
+    timing: original_filing  # filing date of the matching AR row
+    lag_trading_days: 1
+  C:
+    label: "C - True PIT (as-reported @ filing)"
+    version: AR
+    timing: own_filing
+    lag_trading_days: 1
+
+lag_sweep:
+  arms: [A, C]
+  extra_lags: [0, 1, 5, 20, 60]     # trading days added on top of each arm's base rule
+
+signals:                     # name -> direction (+1 higher is better, -1 lower is better)
+  # fundamentals: exposed to Clock 1 (definitions: pitlab.signals.SIGNAL_INFO)
+  earnings_yield: 1
+  book_to_price: 1
+  cash_flow_yield: 1
+  roe: 1
+  gross_profitability: 1
+  accruals: -1
+  sales_growth: 1
+  asset_growth: -1
+  net_issuance: -1
+  earnings_surprise: 1
+  # prices: never restated, identical in every arm -> control group (A-B-C must be ~0)
+  momentum_12_1: 1
+  reversal_1m: -1
+  long_term_reversal: -1
+  low_volatility: -1
+  high_52w: 1
+
+preprocess:
+  winsor_lower: 0.01
+  winsor_upper: 0.99
+
+backtest:
+  newey_west_lags: 6
+  n_quantiles: 10
+  n_quantiles_small: 5
+  small_universe_threshold: 300     # use quintiles if median universe < this
+  min_names_per_date: 20            # skip dates with fewer usable names (free tier ~30)
+  fama_macbeth_sector_dummies: true
+
+slices:
+  size_terciles: true
+  sectors: true
+  restaters: true
+  eras:
+    "pre-2002": [null, "2001-12-31"]
+    "2002-2008": ["2002-01-01", "2008-12-31"]
+    "2009-2015": ["2009-01-01", "2015-12-31"]
+    "2016+": ["2016-01-01", null]
+
+update:                      # `pitlab data update` (scheduled daily; `--full` weekly)
+  history: full              # bulk years=5|10|full - MUST match the purchased Sharadar plan
+  small_tables: [tickers, descriptions, actions, events, sp500]   # re-pulled in full daily
+  delta_tables: [fundamentals, stocks, daily]  # incremental via lastupdated.gte
+  overlap_days: 3            # re-fetch from max(lastupdated) - 3 days (idempotent upsert)
+  rewrite_lookback_days: 10  # a delta row dated older than this => ticker history rewritten
+  adjustment_actions: [split, dividend, spinoff, spinoffdividend]  # => re-fetch full prices
+  keep_full_snapshots:       # prune older full raw snapshots of these (big, reconstructible)
+    stocks: 2
+    daily: 2                 # fundamentals snapshots are kept forever (vintage archive)
+
+synthetic:
+  n_stocks: 800
+  years: 25
+  end_year: 2024
+  seed: 42
