@@ -1,5 +1,6 @@
 # --- Licensed data: NEVER commit (Sharadar Personal Use License, no redistribution) ---
-data/
+# anchored to the repo root: an unanchored "data/" also hid the src/pitlab/data/ code package
+/data/
 *.parquet
 *.duckdb
 *.duckdb.wal
